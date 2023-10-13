@@ -99,6 +99,11 @@ db.full_name
 
 # COMMAND ----------
 
+db = w.schemas.list(old_catalog_name)[4]
+db
+
+# COMMAND ----------
+
 
 db = w.schemas.list(old_catalog_name)[1]
 # db.name
