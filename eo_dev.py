@@ -4,8 +4,17 @@
 
 # COMMAND ----------
 
+
+
+# COMMAND ----------
+
 old_external_location_name = 'eo000_ext_loc_ctg2'
 old_catalog_name = 'eo000_ctg_ext_loc2'
+
+from databricks.sdk import WorkspaceClient
+from databricks.sdk.service import catalog
+
+w = WorkspaceClient()
 
 # COMMAND ----------
 
@@ -36,10 +45,7 @@ def parse_transfer_permissions(securable_type: catalog.SecurableType, old_secura
 # COMMAND ----------
 
 
-from databricks.sdk import WorkspaceClient
-from databricks.sdk.service import catalog
 
-w = WorkspaceClient()
 
 #Create new external location
 storage_credential_name = 'field_demos_credential'
@@ -99,7 +105,12 @@ db.full_name
 
 # COMMAND ----------
 
-db = w.schemas.list(old_catalog_name)[4]
+
+w.schemas.get(full_name=f'{old_catalog_name}.wew')
+
+# COMMAND ----------
+
+db = w.schemas.list(old_catalog_name)[0]
 db
 
 # COMMAND ----------
@@ -127,6 +138,35 @@ parse_transfer_permissions(securable_type=catalog.SecurableType.SCHEMA,
 
 # MAGIC %md
 # MAGIC ## TABLES
+
+# COMMAND ----------
+
+column_tag_list = spark.sql("""
+SELECT
+  *
+FROM
+  system.information_schema.column_tags
+WHERE
+  catalog_name = 'eo000_ctg_ext_loc2'
+          """).collect()
+
+# COMMAND ----------
+
+db_dict = {}
+tbl_dict = {}
+for row in column_tag_list:
+  db_list[](row.schema_name)
+
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC DESCRIBE EXTENDED eo000_ctg_ext_loc2.db1.tbl1
+
+# COMMAND ----------
+
+tbl = list(w.tables.list(catalog_name=old_catalog_name, schema_name=db.name))[0]
+tbl
 
 # COMMAND ----------
 

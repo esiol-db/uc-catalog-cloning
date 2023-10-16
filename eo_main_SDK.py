@@ -4,6 +4,12 @@
 
 # COMMAND ----------
 
+# %sql
+# DROP CATALOG IF EXISTS eo000_ctg_ext_loc5 CASCADE;
+# DROP EXTERNAL LOCATION IF EXISTS eo000_ext_loc_ctg5;
+
+# COMMAND ----------
+
 old_external_location_name = 'eo000_ext_loc_ctg2'
 old_catalog_name = 'eo000_ctg_ext_loc2'
 
@@ -61,22 +67,23 @@ parse_transfer_permissions(securable_type=catalog.SecurableType.CATALOG,
 # COMMAND ----------
 
 
+#gives the list of all schemas in the catalog
 db_list = w.schemas.list(old_catalog_name)
 
 for db in db_list:
   #schema creation and migration
-  if db.name == 'information_schema':
-    continue
-
   print(f'Creating Database {db.name} and transferring permissions ... ', end='')
-  if db.name == 'default':
+  try:
+    w.schemas.get(full_name=f'{catalog_created.name}.{db.name}')
+
     parse_transfer_permissions(securable_type=catalog.SecurableType.SCHEMA, 
                             old_securable_full_name=db.full_name,
-                            new_securable_full_name=f'{catalog_created.name}.default')
-  else:
+                            new_securable_full_name=f'{catalog_created.name}.{db.name}')
+  except Exception as e:
     db_created = w.schemas.create(name=db.name,
-                  catalog_name=catalog_created.full_name,
-                  storage_root=db.storage_root)
+                                 comment=db.comment,
+                                 catalog_name=catalog_created.full_name,
+                                 storage_root=db.storage_root)
 
     parse_transfer_permissions(securable_type=catalog.SecurableType.SCHEMA, 
                             old_securable_full_name=db.full_name,
@@ -89,14 +96,89 @@ for db in db_list:
     if tbl.table_type == catalog.TableType.MANAGED:
       print(f'\t Cloning managed table {tbl.name} and transferring permissions ... ', end='')
       spark.sql(f'CREATE TABLE {db_created.full_name}.{tbl.name} DEEP CLONE {tbl.full_name}')
+      
 
       tbl_created = w.tables.get(full_name=f'{db_created.full_name}.{tbl.name}')
+      spark.sql(f'COMMENT ON TABLE {tbl_created.full_name} IS {tbl.comment};')
+
+      for col in tbl.columns:
+        spark.sql(f"""
+                  ALTER TABLE {tbl_created.full_name}
+                  ALTER COLUMN {col.name}
+                  COMMENT {col.comment}
+                  """)
 
       parse_transfer_permissions(securable_type=catalog.SecurableType.TABLE, 
                             old_securable_full_name=tbl.full_name,
                             new_securable_full_name=tbl_created.full_name)
       print('DONE!')
 
+
+# COMMAND ----------
+
+#Catalog level Tags
+catalog_tag_list = spark.sql(f"""
+SELECT 
+  * 
+FROM 
+  system.information_schema.catalog_tags 
+WHERE 
+  catalog_name = '{old_catalog_name}'
+          """).collect()
+for row in catalog_tag_list:
+  spark.sql(f"""
+            ALTER CATALOG {catalog_created.full_name}
+            SET TAGS ('{row.tag_name}' = '{row.tag_value}')
+            """)
+
+
+#Schema level Tags
+schema_tag_list = spark.sql(f"""
+SELECT 
+  * 
+FROM 
+  system.information_schema.schema_tags 
+WHERE 
+  catalog_name = '{old_catalog_name}'
+          """).collect()
+for row in schema_tag_list:
+  spark.sql(f"""
+            ALTER SCHEMA {catalog_created.full_name}.{row.schema_name}
+            SET TAGS ('{row.tag_name}' = '{row.tag_value}')
+            """)
+
+#Table level Tags
+table_tag_list = spark.sql(f"""
+SELECT 
+  * 
+FROM 
+  system.information_schema.table_tags 
+WHERE catalog_name = '{old_catalog_name}'
+          """).collect()
+for row in table_tag_list:
+  spark.sql(f"""
+            ALTER TABLE {catalog_created.full_name}.{row.schema_name}.{row.table_name}
+            SET TAGS ('{row.tag_name}' = '{row.tag_value}')
+            """)
+
+
+
+#Column level Tags
+column_tag_list = spark.sql(f"""
+SELECT
+  *
+FROM
+  system.information_schema.column_tags
+WHERE
+  catalog_name = '{old_catalog_name}'
+          """).collect()
+
+for row in column_tag_list:
+  spark.sql(f"""
+            ALTER TABLE {catalog_created.full_name}.{row.schema_name}.{row.table_name}
+            ALTER COLUMN {row.column_name}
+            SET TAGS ('{row.tag_name}' = '{row.tag_value}')
+            """)
 
 # COMMAND ----------
 
