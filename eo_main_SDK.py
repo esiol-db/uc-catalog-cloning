@@ -6,7 +6,7 @@
 
 # %sql
 # DROP CATALOG IF EXISTS eo000_ctg_ext_loc5 CASCADE;
-# DROP EXTERNAL LOCATION IF EXISTS eo000_ext_loc_ctg5;
+# -- DROP EXTERNAL LOCATION IF EXISTS eo000_ext_loc_ctg5;
 
 # COMMAND ----------
 
@@ -88,6 +88,8 @@ for db in db_list:
     parse_transfer_permissions(securable_type=catalog.SecurableType.SCHEMA, 
                             old_securable_full_name=db.full_name,
                             new_securable_full_name=db_created.full_name)
+    
+  spark.sql(f'COMMENT ON SCHEMA {db_created.full_name} IS "{db.comment}"')  
   print('DONE!')
   
   #table creation and migraiton
@@ -99,13 +101,13 @@ for db in db_list:
       
 
       tbl_created = w.tables.get(full_name=f'{db_created.full_name}.{tbl.name}')
-      spark.sql(f'COMMENT ON TABLE {tbl_created.full_name} IS {tbl.comment};')
+      spark.sql(f'COMMENT ON TABLE {tbl_created.full_name} IS "{tbl.comment}"')
 
       for col in tbl.columns:
         spark.sql(f"""
                   ALTER TABLE {tbl_created.full_name}
                   ALTER COLUMN {col.name}
-                  COMMENT {col.comment}
+                  COMMENT "{col.comment}"
                   """)
 
       parse_transfer_permissions(securable_type=catalog.SecurableType.TABLE, 
