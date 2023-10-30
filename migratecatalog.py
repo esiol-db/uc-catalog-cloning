@@ -1,4 +1,3 @@
-
 from typing import Dict, Optional, List
 import re
 import logging
@@ -11,18 +10,19 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 
-try: 
+try:
     dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiUrl().get()
 except Exception as e:
     logger.info(e)
     try:
         from databricks.connect import DatabricksSession
+
         spark = DatabricksSession.builder.getOrCreate()
     except ImportError as ie:
         logger.info(ie)
         raise ImportError(
-        "Could not import databricks-connect, please install with `pip install databricks-connect`."
-    ) from ie
+            "Could not import databricks-connect, please install with `pip install databricks-connect`."
+        ) from ie
 
 try:
     from databricks.sdk.core import DatabricksError
@@ -31,26 +31,23 @@ try:
 except ImportError as e:
     logger.info(e)
     raise ImportError(
-    "Could not import databricks-sdk, please install with `pip install databricks-sdk --upgrade`.\n"
-    "If you are running from Databricks you also need to restart Python by running `dbutils.library.restartPython()`"
-) from e
+        "Could not import databricks-sdk, please install with `pip install databricks-sdk --upgrade`.\n"
+        "If you are running from Databricks you also need to restart Python by running `dbutils.library.restartPython()`"
+    ) from e
 try:
     from pyspark.sql.utils import AnalysisException
 except ImportError as e:
     logger.info(e)
     raise ImportError(
-    "Could not import pyspark, please install with `pip install pyspark`."
-) from e
+        "Could not import pyspark, please install with `pip install pyspark`."
+    ) from e
 try:
     from termcolor import cprint
 except ImportError as e:
     logger.info(e)
     raise ImportError(
-    "Could not import termcolor, please install with `pip install termcolor`."
-) from e
-
-
-
+        "Could not import termcolor, please install with `pip install termcolor`."
+    ) from e
 
 
 class MigrateCatalog:
@@ -72,7 +69,9 @@ class MigrateCatalog:
             self.new_ext_loc_url,
         ) = self.new_external_location_pre_req
         self.new_ctlg_name = new_catalog_name
-        self.db_dict = self._build_location_for_schemas(schemas_locations_dict or dict())
+        self.db_dict = self._build_location_for_schemas(
+            schemas_locations_dict or dict()
+        )
         self.securable_dict = {
             catalog.SecurableType.EXTERNAL_LOCATION: [
                 self.w.external_locations,
@@ -142,14 +141,20 @@ class MigrateCatalog:
         old_catalog_name: str,
         new_securable_full_name: str,
     ) -> bool:
-        try:
-            securable_tag_list = spark.sql(
-                f"""
-      SELECT * FROM 
+        _, schema, table = (*new_securable_full_name.split("."), None, None)[:3]
+        schema_clause = f"\tAND schema_name = '{schema}'" if schema else ""
+        table_clause = f"\tAND table_name = '{table}'" if table else ""
+        query = (
+            f"""
+        SELECT * FROM 
         system.information_schema.{securable_type_str.lower()}_tags 
-      WHERE catalog_name = '{old_catalog_name}'
+        WHERE catalog_name = '{old_catalog_name}'
               """
-            ).collect()
+            + schema_clause
+            + table_clause
+        )
+        try:
+            securable_tag_list = spark.sql(query).collect()
 
             for row in securable_tag_list:
                 if securable_type_str.lower() == "column":
@@ -246,14 +251,15 @@ class MigrateCatalog:
                         full_name=new_securable_full_name
                     )
                     spark.sql(
-                        f'COMMENT ON TABLE {new_securable_full_name} IS "{new_securable.comment}"'
+                        f'COMMENT ON TABLE {new_securable_full_name} IS "{new_securable.comment or ""}"'
                     )
                 else:
                     new_securable = self.securable_dict[securable_type][0].create(
                         name=new_securable_name,
                         comment=self.securable_dict[securable_type][0]
                         .get(old_securable_full_name)
-                        .comment,
+                        .comment
+                        or "",
                         **kwarg,
                     )
             except AnalysisException as ae:
@@ -278,14 +284,14 @@ class MigrateCatalog:
                         new_securable_full_name,
                     )
                 if securable_type == catalog.SecurableType.TABLE:
-                    for col in new_securable.columns:
-                        spark.sql(
-                            f"""
-                    ALTER TABLE {new_securable_full_name}
-                    ALTER COLUMN {col.name}
-                    COMMENT "{col.comment}"
-                    """
-                        )
+                    # for col in new_securable.columns:
+                    #     spark.sql(
+                    #         f"""
+                    # ALTER TABLE {new_securable_full_name}
+                    # ALTER COLUMN {col.name}
+                    # COMMENT "{col.comment}"
+                    # """
+                    #     )
                     _ = self._migrate_tags(
                         "column", self.old_ctlg_name, new_securable_full_name
                     )
