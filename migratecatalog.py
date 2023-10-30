@@ -1,16 +1,5 @@
-# For running the code locally using Databricks Connect
-# If running from Databricks, the following two lines are not needed
-from databricks.connect import DatabricksSession
 
-spark = DatabricksSession.builder.getOrCreate()
-
-
-from pyspark.sql.utils import AnalysisException
-from databricks.sdk.core import DatabricksError
-from databricks.sdk import WorkspaceClient
-from databricks.sdk.service import catalog
 from typing import Dict, Optional, List
-from termcolor import cprint
 import re
 import logging
 
@@ -22,26 +11,68 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 
+try: 
+    dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiUrl().get()
+except Exception as e:
+    logger.info(e)
+    try:
+        from databricks.connect import DatabricksSession
+        spark = DatabricksSession.builder.getOrCreate()
+    except ImportError as ie:
+        logger.info(ie)
+        raise ImportError(
+        "Could not import databricks-connect, please install with `pip install databricks-connect`."
+    ) from ie
+
+try:
+    from databricks.sdk.core import DatabricksError
+    from databricks.sdk import WorkspaceClient
+    from databricks.sdk.service import catalog
+except ImportError as e:
+    logger.info(e)
+    raise ImportError(
+    "Could not import databricks-sdk, please install with `pip install databricks-sdk --upgrade`.\n"
+    "If you are running from Databricks you also need to restart Python by running `dbutils.library.restartPython()`"
+) from e
+try:
+    from pyspark.sql.utils import AnalysisException
+except ImportError as e:
+    logger.info(e)
+    raise ImportError(
+    "Could not import pyspark, please install with `pip install pyspark`."
+) from e
+try:
+    from termcolor import cprint
+except ImportError as e:
+    logger.info(e)
+    raise ImportError(
+    "Could not import termcolor, please install with `pip install termcolor`."
+) from e
+
+
+
+
+
 class MigrateCatalog:
     def __init__(
         self,
-        old_external_location_name: str,
+        old_catalog_external_location_name: str,
         old_catalog_name: str,
-        new_external_location_pre_req: List,
+        new_catalog_external_location_pre_req: List,
         new_catalog_name: str,
-        db_dict: Optional[Dict[str, List]],
+        schemas_locations_dict: Optional[Dict[str, List]],
     ) -> None:
         self.w = WorkspaceClient()
-        self.old_ext_loc_name = old_external_location_name
+        self.old_ext_loc_name = old_catalog_external_location_name
         self.old_ctlg_name = old_catalog_name
-        self.new_external_location_pre_req = new_external_location_pre_req
+        self.new_external_location_pre_req = new_catalog_external_location_pre_req
         (
             self.new_ext_loc_name,
             self.new_strg_cred_name,
             self.new_ext_loc_url,
         ) = self.new_external_location_pre_req
         self.new_ctlg_name = new_catalog_name
-        self.db_dict = self._build_location_for_schemas(db_dict or dict())
+        self.db_dict = self._build_location_for_schemas(schemas_locations_dict or dict())
         self.securable_dict = {
             catalog.SecurableType.EXTERNAL_LOCATION: [
                 self.w.external_locations,
@@ -65,6 +96,7 @@ class MigrateCatalog:
         cprint(indent + message.strip(), color=color, on_color=on_color, end=end)
 
     def _build_location_for_schemas(self, db_dict: Dict[str, List]) -> Dict[str, List]:
+        databricks_exception_hit = 0
         db_dict_out = {}
         if db_dict:
             self._print_to_console(
@@ -94,8 +126,13 @@ class MigrateCatalog:
                 except AnalysisException as e:
                     logger.info(e)
                     self._print_to_console(str(e), color="red", on_color="on_yellow")
+                except DatabricksError as de:
+                    databricks_exception_hit = 1
+                    logger.exception(de)
+                    raise de
             finally:
-                db_dict_out[db_name] = db_external_location.url
+                if not databricks_exception_hit:
+                    db_dict_out[db_name] = db_external_location.url
 
         return db_dict_out
 
@@ -179,6 +216,7 @@ class MigrateCatalog:
     ) -> None:
         new_securable = None
         analysis_exception_hit = 0
+        databricks_exception_hit = 0
         new_securable_name = re.findall("[^.]+$", new_securable_full_name)[0]
         try:
             new_securable = self.securable_dict[securable_type][0].get(
@@ -222,8 +260,12 @@ class MigrateCatalog:
                 logger.exception(ae)
                 analysis_exception_hit = 1
                 self._print_to_console(str(ae), color="red", on_color="on_yellow")
+            except DatabricksError as de:
+                logger.exception(de)
+                databricks_exception_hit = 1
+                raise de
         finally:
-            if not analysis_exception_hit:
+            if not (analysis_exception_hit or databricks_exception_hit):
                 _ = self._parse_transfer_permissions(
                     securable_type=securable_type,
                     old_securable_full_name=old_securable_full_name,
