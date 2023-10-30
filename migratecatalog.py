@@ -146,10 +146,10 @@ class MigrateCatalog:
         table_clause = f"\tAND table_name = '{table}'" if table else ""
         query = (
             f"""
-        SELECT * FROM 
-        system.information_schema.{securable_type_str.lower()}_tags 
-        WHERE catalog_name = '{old_catalog_name}'
-              """
+            SELECT * FROM 
+            system.information_schema.{securable_type_str.lower()}_tags 
+            WHERE catalog_name = '{old_catalog_name}'
+            """
             + schema_clause
             + table_clause
         )
@@ -284,14 +284,6 @@ class MigrateCatalog:
                         new_securable_full_name,
                     )
                 if securable_type == catalog.SecurableType.TABLE:
-                    # for col in new_securable.columns:
-                    #     spark.sql(
-                    #         f"""
-                    # ALTER TABLE {new_securable_full_name}
-                    # ALTER COLUMN {col.name}
-                    # COMMENT "{col.comment}"
-                    # """
-                    #     )
                     _ = self._migrate_tags(
                         "column", self.old_ctlg_name, new_securable_full_name
                     )
