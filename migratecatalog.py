@@ -1,8 +1,8 @@
-#For running the code locally using Databricks Connect
-#If running from Databricks, the following two lines are not needed
+# For running the code locally using Databricks Connect
+# If running from Databricks, the following two lines are not needed
 from databricks.connect import DatabricksSession
-spark = DatabricksSession.builder.getOrCreate()
 
+spark = DatabricksSession.builder.getOrCreate()
 
 
 from pyspark.sql.utils import AnalysisException
@@ -62,7 +62,7 @@ class MigrateCatalog:
         on_color: str = None,
     ) -> None:
         indent = " " * indent_size * indent_level
-        cprint(indent + message.strip(), color=color, no_color=on_color, end=end)
+        cprint(indent + message.strip(), color=color, on_color=on_color, end=end)
 
     def _build_location_for_schemas(self, db_dict: Dict[str, List]) -> Dict[str, List]:
         db_dict_out = {}
@@ -78,7 +78,7 @@ class MigrateCatalog:
                     f"External location {ext_loc_name} already exists and will be used for {db_name}.",
                     indent_level=3,
                 )
-            except (DatabricksError, Exception) as e:
+            except DatabricksError as e:
                 logger.info(e)
                 self._print_to_console(
                     f"Creating External location {ext_loc_name} ...",
@@ -131,7 +131,7 @@ class MigrateCatalog:
                   """
                     )
 
-        except (DatabricksError, Exception) as e:
+        except DatabricksError as e:
             logger.info(e)
             self._print_to_console(str(e), color="red", on_color="on_yellow")
 
@@ -164,7 +164,7 @@ class MigrateCatalog:
                 changes=changes,
             )
             return True
-        except (DatabricksError, Exception) as e:
+        except DatabricksError as e:
             logger.info(e)
             self._print_to_console(str(e), color="red", on_color="on_yellow")
             return False
@@ -189,7 +189,7 @@ class MigrateCatalog:
                 indent_level=print_indent_level,
                 end=" ",
             )
-        except (DatabricksError, Exception) as e:
+        except DatabricksError as e:
             logger.info(e)
             self._print_to_console(
                 f"Creating {self.securable_dict[securable_type][1]} {new_securable_name} and transferring permissions, comments and tags ...",
