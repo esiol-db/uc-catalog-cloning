@@ -2,6 +2,7 @@ from typing import Dict, Optional, List
 import re
 import logging
 
+# Set up logger to capture logs and store them in a file
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -9,7 +10,8 @@ file_handler = logging.FileHandler(filename="logs.log", mode="w")
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
-
+# Attempt to retrieve the Databricks environment's API URL
+# This block checks whether the code is running inside a Databricks notebook.
 try:
     dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiUrl().get()
 except Exception as e:
@@ -24,6 +26,8 @@ except Exception as e:
             "Could not import databricks-connect, please install with `pip install databricks-connect`."
         ) from ie
 
+# Import necessary Databricks SDK modules
+# If unavailable, prompt the user to install or upgrade them
 try:
     from databricks.sdk.core import DatabricksError
     from databricks.sdk import WorkspaceClient
@@ -34,6 +38,8 @@ except ImportError as e:
         "Could not import databricks-sdk, please install with `pip install databricks-sdk --upgrade`.\n"
         "If you are running from Databricks you also need to restart Python by running `dbutils.library.restartPython()`"
     ) from e
+
+# Import other necessary modules and handle potential import errors
 try:
     from pyspark.sql.utils import AnalysisException
 except ImportError as e:
@@ -50,7 +56,13 @@ except ImportError as e:
     ) from e
 
 
+# Define the MigrateCatalog class
 class MigrateCatalog:
+    """
+    This class facilitates the migration of external storages and catalogs and the data assets between catalogs, including the associated permissions, comments, and tags.
+    It creates new data assets if they do not already exist in the target catalog, and if they exist it only transfers the associated permissions, comments, and tags.
+    """
+
     def __init__(
         self,
         old_catalog_external_location_name: str,
@@ -59,6 +71,18 @@ class MigrateCatalog:
         new_catalog_name: str,
         schemas_locations_dict: Optional[Dict[str, List]],
     ) -> None:
+        """
+        Initializes the MigrateCatalog class.
+
+        Parameters:
+        old_catalog_external_location_name (str): Name of the old external location.
+        old_catalog_name (str): Name of the old catalog.
+        new_external_location_pre_req (List): Pre-requisites for the new external location in the form of `[new_catalog_ext_loc_name, 'storage_credential_name', 'storage_location_url(ADLS, S3, GS)']`
+        new_catalog_name (str): Name of the new catalog.
+        schemas_locations_dict (Dict[str, List]): Dictionary mapping schemas to locations in the form of a schema_name as a key and a list as the associated value in the form
+        `[ext_loc_name, 'storage_credential_name', 'storage_location_url(ADLS, S3, GS)']`
+        """
+
         self.w = WorkspaceClient()
         self.old_ext_loc_name = old_catalog_external_location_name
         self.old_ctlg_name = old_catalog_name
@@ -91,10 +115,27 @@ class MigrateCatalog:
         color: str = None,
         on_color: str = None,
     ) -> None:
+        """
+        Prints a message to the console.
+
+        Parameters:
+            message (str): Message to be printed.
+            color (Optional[str]): Color of the printed message.
+            indent (Optional[int]): Indentation level for the message.
+        """
         indent = " " * indent_size * indent_level
         cprint(indent + message.strip(), color=color, on_color=on_color, end=end)
 
     def _build_location_for_schemas(self, db_dict: Dict[str, List]) -> Dict[str, List]:
+        """
+        Creates or retrieves external locations for schemas.
+
+        Parameters:
+            schemas (List[str]): List of schema names.
+
+        Returns:
+            Dict[str, List]: Dictionary mapping schemas to their external locations.
+        """
         databricks_exception_hit = 0
         db_dict_out = {}
         if db_dict:
@@ -141,6 +182,15 @@ class MigrateCatalog:
         old_catalog_name: str,
         new_securable_full_name: str,
     ) -> bool:
+        """
+        Migrates tags for a securable type.
+
+        Parameters:
+            securable_type (str): The type of the securable to migrate tags for.
+
+        Returns:
+            bool: True if migration was successful, False otherwise.
+        """
         _, schema, table = (*new_securable_full_name.split("."), None, None)[:3]
         schema_clause = f"\tAND schema_name = '{schema}'" if schema else ""
         table_clause = f"\tAND table_name = '{table}'" if table else ""
@@ -183,6 +233,16 @@ class MigrateCatalog:
         old_securable_full_name: str,
         new_securable_full_name: str,
     ) -> bool:
+        """
+        Transfers permissions between securable objects.
+
+        Parameters:
+            old_object (Any): The old securable object.
+            new_object (Any): The new securable object.
+
+        Returns:
+            bool: True if transfer was successful, False otherwise.
+        """
         try:
             grants = self.w.grants.get(
                 securable_type=securable_type, full_name=f"{old_securable_full_name}"
@@ -219,6 +279,14 @@ class MigrateCatalog:
         print_indent_level: str = 0,
         **kwarg,
     ) -> None:
+        """
+        Retrieves or creates a securable object and transfers data, permissions, comments and tags.
+
+        Parameters:
+            securable_type (str): The type of securable object.
+            old_object_id (str): ID of the old securable object.
+            new_object_id (str): ID of the new securable object.
+        """
         new_securable = None
         analysis_exception_hit = 0
         databricks_exception_hit = 0
@@ -292,6 +360,9 @@ class MigrateCatalog:
         return new_securable
 
     def __call__(self):
+        """
+        Executes the migration process.
+        """
         self._print_to_console(
             "Creating data assets if they do not exist and migrate permissions, comments and tags.",
             color="cyan",
