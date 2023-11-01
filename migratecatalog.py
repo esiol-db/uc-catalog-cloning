@@ -339,7 +339,7 @@ class MigrateCatalog:
                         or "",
                         **kwarg,
                     )
-            except (AnalysisException, Py4JError, SparkConnectGrpcException) as ae:
+            except (AnalysisException) as ae:
                 logger.exception(ae)
                 analysis_exception_hit = 1
                 self._print_to_console(str(ae), color="red", on_color="on_yellow")
@@ -347,6 +347,10 @@ class MigrateCatalog:
                 logger.exception(de)
                 databricks_exception_hit = 1
                 raise de
+            except (Py4JError, SparkConnectGrpcException, Exception) as e:
+                logger.exception(e)
+                databricks_exception_hit = 1
+                self._print_to_console("Tables with row level security or column level masking are not supported!", color="red", on_color="on_yellow")
         finally:
             if not (analysis_exception_hit or databricks_exception_hit):
                 _ = self._parse_transfer_permissions(
