@@ -1,3 +1,4 @@
+from py4j.protocol import Py4JError
 from typing import Dict, Optional, List
 import re
 import logging
@@ -42,6 +43,7 @@ except ImportError as e:
 # Import other necessary modules and handle potential import errors
 try:
     from pyspark.sql.utils import AnalysisException
+    from pyspark.errors.exceptions.connect import SparkConnectGrpcException
 except ImportError as e:
     logger.info(e)
     raise ImportError(
@@ -337,7 +339,7 @@ class MigrateCatalog:
                         or "",
                         **kwarg,
                     )
-            except AnalysisException as ae:
+            except (AnalysisException, Py4JError, SparkConnectGrpcException) as ae:
                 logger.exception(ae)
                 analysis_exception_hit = 1
                 self._print_to_console(str(ae), color="red", on_color="on_yellow")
