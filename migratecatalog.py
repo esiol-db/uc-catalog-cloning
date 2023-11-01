@@ -82,8 +82,15 @@ class MigrateCatalog:
         schemas_locations_dict (Dict[str, List]): Dictionary mapping schemas to locations in the form of a schema_name as a key and a list as the associated value in the form
         `[ext_loc_name, 'storage_credential_name', 'storage_location_url(ADLS, S3, GS)']`
         """
+        try:
+            self.w = WorkspaceClient()
+        except ValueError as e:
+            logger.info(e)
+            raise ValueError(
+                "Please reinstall databricks-sdk with `pip install databricks-sdk --upgrade`.\n"
+                "If you are running from Databricks you also need to restart Python by running `dbutils.library.restartPython()`"
+            ) from e
 
-        self.w = WorkspaceClient()
         self.old_ext_loc_name = old_catalog_external_location_name
         self.old_ctlg_name = old_catalog_name
         self.new_external_location_pre_req = new_catalog_external_location_pre_req
