@@ -195,7 +195,7 @@ class MigrateCatalog:
         Migrates tags for a securable type.
 
         Parameters:
-            securable_type (str): The type of the securable to migrate tags for.
+            securable_type_str (str): The type of the securable to migrate tags for.
 
         Returns:
             bool: True if migration was successful, False otherwise.
@@ -293,12 +293,15 @@ class MigrateCatalog:
 
         Parameters:
             securable_type (str): The type of securable object.
-            old_object_id (str): ID of the old securable object.
-            new_object_id (str): ID of the new securable object.
+            old_securable_full_name (str): full name of the old securable object.
+            new_securable_full_name (str): full name of the new securable object.
         """
         new_securable = None
         analysis_exception_hit = 0
         databricks_exception_hit = 0
+        old_securable = self.securable_dict[securable_type][0].get(
+            old_securable_full_name
+        )
         new_securable_name = re.findall("[^.]+$", new_securable_full_name)[0]
         try:
             new_securable = self.securable_dict[securable_type][0].get(
@@ -318,28 +321,18 @@ class MigrateCatalog:
             )
             try:
                 if securable_type == catalog.SecurableType.TABLE:
-                    new_securable = self.securable_dict[securable_type][0].get(
-                        old_securable_full_name
-                    )
                     spark.sql(
-                        f"CREATE TABLE {new_securable_full_name} DEEP CLONE {new_securable.full_name}"
+                        f"CREATE TABLE {new_securable_full_name} DEEP CLONE {old_securable_full_name}"
                     )
                     new_securable = self.securable_dict[securable_type][0].get(
                         full_name=new_securable_full_name
                     )
-                    spark.sql(
-                        f'COMMENT ON TABLE {new_securable_full_name} IS "{new_securable.comment or ""}"'
-                    )
+
                 else:
                     new_securable = self.securable_dict[securable_type][0].create(
-                        name=new_securable_name,
-                        comment=self.securable_dict[securable_type][0]
-                        .get(old_securable_full_name)
-                        .comment
-                        or "",
-                        **kwarg,
+                        name=new_securable_name, **kwarg
                     )
-            except (AnalysisException) as ae:
+            except AnalysisException as ae:
                 logger.exception(ae)
                 analysis_exception_hit = 1
                 self._print_to_console(str(ae), color="red", on_color="on_yellow")
@@ -350,14 +343,20 @@ class MigrateCatalog:
             except (Py4JError, SparkConnectGrpcException, Exception) as e:
                 logger.exception(e)
                 databricks_exception_hit = 1
-                self._print_to_console("Tables with row level security or column level masking are not supported!", color="red", on_color="on_yellow")
+                self._print_to_console(
+                    "Tables with row level security or column level masking are not supported!",
+                    color="red",
+                    on_color="on_yellow",
+                )
         finally:
             if not (analysis_exception_hit or databricks_exception_hit):
+                # migrate the securable's granted permissions
                 _ = self._parse_transfer_permissions(
                     securable_type=securable_type,
                     old_securable_full_name=old_securable_full_name,
                     new_securable_full_name=new_securable_full_name,
                 )
+                # migrate the securable's tags
                 if securable_type != catalog.SecurableType.EXTERNAL_LOCATION:
                     _ = self._migrate_tags(
                         self.securable_dict[securable_type][1],
@@ -365,9 +364,33 @@ class MigrateCatalog:
                         new_securable_full_name,
                     )
                 if securable_type == catalog.SecurableType.TABLE:
+                    # migrate the table columns' tags
                     _ = self._migrate_tags(
                         "column", self.old_ctlg_name, new_securable_full_name
                     )
+
+                    # migrate the table's comment
+                    spark.sql(
+                        f'COMMENT ON TABLE {new_securable_full_name} IS "{old_securable.comment or ""}"'
+                    )
+
+                    # migrate the table columns' comments
+                    for col in old_securable.columns:
+                        spark.sql(
+                            f"""
+                      ALTER TABLE {new_securable_full_name}
+                      ALTER COLUMN {col.name}
+                      COMMENT "{col.comment or ""}"
+                      """
+                        )
+
+                else:
+                    # migrate the securable's comment
+                    if new_securable_name.lower() != "information_schema":
+                        self.securable_dict[securable_type][0].update(
+                            new_securable_full_name, comment=old_securable.comment or ""
+                        )
+
                 self._print_to_console("DONE!", color="green")
 
         return new_securable
@@ -405,7 +428,7 @@ class MigrateCatalog:
                 f"{self.new_ctlg_name}.{db.name}",
                 print_indent_level=9,
                 catalog_name=self.new_catalog.name,
-                storage_root=self.db_dict.get(db.name, None),
+                storage_root=self.db_dict.get(db.name, None) or db.storage_root,
             )
 
             tbl_list = self.w.tables.list(
