@@ -22,7 +22,6 @@ Follow these steps to make the most of this migration script:
 
 Create an instance of the MigrateCatalog class with the necessary configuration parameters as illustrated in [Link to Example Notebook](example.ipynb).
 
-   
    ```python
    migration = MigrateCatalog(old_catalog_external_location_name,
     old_catalog_name,
@@ -30,9 +29,6 @@ Create an instance of the MigrateCatalog class with the necessary configuration 
     new_catalog_name,
    schemas_locations_dict)
    ```
-   
-
-
 Replace the input arguments with your specific configuration details.
 
 4. **Run the migration**:
@@ -49,7 +45,8 @@ For a hands-on example, refer to the provided Jupyter notebook in the repository
 
 ## Customization
 Customize the migration process by modifying the MigrateCatalog class and its methods to suit your specific requirements.
-Issues and Support:
+
+## Issues and Support:
 
 If you encounter any issues or have questions, please check the project's issue tracker on GitHub or reach out to the community for support.
 
