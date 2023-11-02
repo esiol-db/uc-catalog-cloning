@@ -130,7 +130,6 @@ class MigrateCatalog:
         Parameters:
             message (str): Message to be printed.
             color (Optional[str]): Color of the printed message.
-            indent (Optional[int]): Indentation level for the message.
         """
         indent = " " * indent_size * indent_level
         cprint(indent + message.strip(), color=color, on_color=on_color, end=end)
@@ -140,7 +139,7 @@ class MigrateCatalog:
         Creates or retrieves external locations for schemas.
 
         Parameters:
-            schemas (List[str]): List of schema names.
+            db_dict (Dict[str, List])): dictionary of schema location requirements.
 
         Returns:
             Dict[str, List]: Dictionary mapping schemas to their external locations.
@@ -246,8 +245,8 @@ class MigrateCatalog:
         Transfers permissions between securable objects.
 
         Parameters:
-            old_object (Any): The old securable object.
-            new_object (Any): The new securable object.
+            old_securable_full_name (Any): The old securable object full name.
+            new_securable_full_name (Any): The new securable object full name.
 
         Returns:
             bool: True if transfer was successful, False otherwise.
