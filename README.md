@@ -20,7 +20,7 @@ Follow these steps to make the most of this migration script:
    
 3. **Instantiate the `MigrateCatalog` Class**:
 
-Create an instance of the MigrateCatalog class with the necessary configuration parameters as illustrated in [https://github.com/esiol-db/uc-catalog-migration/blob/main/example.ipynb](example.ipynb)
+Create an instance of the MigrateCatalog class with the necessary configuration parameters as illustrated in [example.ipynb](https://github.com/esiol-db/uc-catalog-migration/blob/main/example.ipynb)
 
    ```python
    migration = MigrateCatalog(old_catalog_external_location_name,
@@ -41,7 +41,7 @@ migration()
 
 Example Notebook:
 
-For a hands-on example, refer to the provided Jupyter notebook in the repository [https://github.com/esiol-db/uc-catalog-migration/blob/main/example.ipynb](example.ipynb).
+For a hands-on example, refer to the provided Jupyter notebook in the repository [example.ipynb](https://github.com/esiol-db/uc-catalog-migration/blob/main/example.ipynb).
 
 ## Customization
 Customize the migration process by modifying the MigrateCatalog class and its methods to suit your specific requirements.
