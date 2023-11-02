@@ -20,19 +20,17 @@ Follow these steps to make the most of this migration script:
    
 3. **Instantiate the `MigrateCatalog` Class**:
 
-Create an instance of the MigrateCatalog class with the necessary configuration parameters as illustrated in [Link to Example Notebook](example.ipynb).
+Create an instance of the MigrateCatalog class with the necessary configuration parameters as illustrated in [example.ipynb](https://github.com/esiol-db/uc-catalog-migration/blob/main/example.ipynb)
 
-   
    ```python
-   migration = MigrateCatalog(old_catalog_external_location_name,
-    old_catalog_name,
-    new_catalog_external_location_pre_req,
-    new_catalog_name,
-   schemas_locations_dict)
+migration = MigrateCatalog(
+         old_catalog_external_location_name,
+         old_catalog_name,
+         new_catalog_external_location_pre_req,
+         new_catalog_name,
+         schemas_locations_dict
+)
    ```
-   
-
-
 Replace the input arguments with your specific configuration details.
 
 4. **Run the migration**:
@@ -45,11 +43,12 @@ migration()
 
 Example Notebook:
 
-For a hands-on example, refer to the provided Jupyter notebook in the repository [Link to Example Notebook](example.ipynb).
+For a hands-on example, refer to the provided Jupyter notebook in the repository [example.ipynb](https://github.com/esiol-db/uc-catalog-migration/blob/main/example.ipynb).
 
 ## Customization
 Customize the migration process by modifying the MigrateCatalog class and its methods to suit your specific requirements.
-Issues and Support:
+
+## Issues and Support:
 
 If you encounter any issues or have questions, please check the project's issue tracker on GitHub or reach out to the community for support.
 
