@@ -67,20 +67,20 @@ class MigrateCatalog:
 
     def __init__(
         self,
-        old_catalog_external_location_name: str,
-        old_catalog_name: str,
-        new_catalog_external_location_pre_req: List,
-        new_catalog_name: str,
+        source_catalog_external_location_name: str,
+        source_catalog_name: str,
+        target_catalog_external_location_pre_req: List,
+        target_catalog_name: str,
         schemas_locations_dict: Optional[Dict[str, List]],
     ) -> None:
         """
         Initializes the MigrateCatalog class.
 
         Parameters:
-        old_catalog_external_location_name (str): Name of the old external location.
-        old_catalog_name (str): Name of the old catalog.
-        new_external_location_pre_req (List): Pre-requisites for the new external location in the form of `[new_catalog_ext_loc_name, 'storage_credential_name', 'storage_location_url(ADLS, S3, GS)']`
-        new_catalog_name (str): Name of the new catalog.
+        source_catalog_external_location_name (str): Name of the old external location.
+        source_catalog_name (str): Name of the old catalog.
+        target_catalog_external_location_pre_req (List): Pre-requisites for the new external location in the form of `[new_catalog_ext_loc_name, 'storage_credential_name', 'storage_location_url(ADLS, S3, GS)']`
+        target_catalog_name (str): Name of the new catalog.
         schemas_locations_dict (Dict[str, List]): Dictionary mapping schemas to locations in the form of a schema_name as a key and a list as the associated value in the form
         `[ext_loc_name, 'storage_credential_name', 'storage_location_url(ADLS, S3, GS)']`
         """
@@ -93,15 +93,15 @@ class MigrateCatalog:
                 "If you are running from Databricks you also need to restart Python by running `dbutils.library.restartPython()`"
             ) from e
 
-        self.old_ext_loc_name = old_catalog_external_location_name
-        self.old_ctlg_name = old_catalog_name
-        self.new_external_location_pre_req = new_catalog_external_location_pre_req
+        self.old_ext_loc_name = source_catalog_external_location_name
+        self.old_ctlg_name = source_catalog_name
+        self.new_external_location_pre_req = target_catalog_external_location_pre_req
         (
             self.new_ext_loc_name,
             self.new_strg_cred_name,
             self.new_ext_loc_url,
         ) = self.new_external_location_pre_req
-        self.new_ctlg_name = new_catalog_name
+        self.new_ctlg_name = target_catalog_name
         self.db_dict = self._build_location_for_schemas(
             schemas_locations_dict or dict()
         )
