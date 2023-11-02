@@ -14,28 +14,30 @@ Follow these steps to make the most of this migration script:
 
    ```python
    from migratecatalog import MigrateCatalog
+   
 
    
 3. **Instantiate the `MigrateCatalog` Class**:
 
 Create an instance of the MigrateCatalog class with the necessary configuration parameters as illustrated in [Link to Example Notebook](example.ipynb).
 
-```python
-migration = MigrateCatalog(old_catalog_external_location_name,
+   ```python
+   migration = MigrateCatalog(old_catalog_external_location_name,
     old_catalog_name,
     new_catalog_external_location_pre_req,
     new_catalog_name,
-schemas_locations_dict)
+   schemas_locations_dict)
+
 
 Replace the input arguments with your specific configuration details.
 
 4. **Run the migration**:
 
-
 Execute the migration by calling the MigrateCatalog instance.
-```python
 
+```python
 migration()
+
 Example Notebook:
 
 For a hands-on example, refer to the provided Jupyter notebook in the repository [Link to Example Notebook](example.ipynb).
