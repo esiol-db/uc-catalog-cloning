@@ -24,10 +24,10 @@ Create an instance of the MigrateCatalog class with the necessary configuration 
 
    ```python
 migration = MigrateCatalog(
-         old_catalog_external_location_name,
-         old_catalog_name,
-         new_catalog_external_location_pre_req,
-         new_catalog_name,
+         source_catalog_external_location_name,
+         source_catalog_name,
+         target_catalog_external_location_pre_req,
+         target_catalog_name,
          schemas_locations_dict
 )
    ```
