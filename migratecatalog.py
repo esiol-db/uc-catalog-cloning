@@ -77,10 +77,10 @@ class MigrateCatalog:
         Initializes the MigrateCatalog class.
 
         Parameters:
-        source_catalog_external_location_name (str): Name of the old external location.
-        source_catalog_name (str): Name of the old catalog.
-        target_catalog_external_location_pre_req (List): Pre-requisites for the new external location in the form of `[new_catalog_ext_loc_name, 'storage_credential_name', 'storage_location_url(ADLS, S3, GS)']`
-        target_catalog_name (str): Name of the new catalog.
+        source_catalog_external_location_name (str): Name of the source external location.
+        source_catalog_name (str): Name of the source catalog.
+        target_catalog_external_location_pre_req (List): Pre-requisites for the new external location in the form of `[target_catalog_ext_loc_name, 'storage_credential_name', 'storage_location_url(ADLS, S3, GS)']`
+        target_catalog_name (str): Name of the new target catalog.
         schemas_locations_dict (Dict[str, List]): Dictionary mapping schemas to locations in the form of a schema_name as a key and a list as the associated value in the form
         `[ext_loc_name, 'storage_credential_name', 'storage_location_url(ADLS, S3, GS)']`
         """
@@ -93,15 +93,15 @@ class MigrateCatalog:
                 "If you are running from Databricks you also need to restart Python by running `dbutils.library.restartPython()`"
             ) from e
 
-        self.old_ext_loc_name = source_catalog_external_location_name
-        self.old_ctlg_name = source_catalog_name
-        self.new_external_location_pre_req = target_catalog_external_location_pre_req
+        self.source_ext_loc_name = source_catalog_external_location_name
+        self.source_ctlg_name = source_catalog_name
+        self.target_external_location_pre_req = target_catalog_external_location_pre_req
         (
-            self.new_ext_loc_name,
-            self.new_strg_cred_name,
-            self.new_ext_loc_url,
-        ) = self.new_external_location_pre_req
-        self.new_ctlg_name = target_catalog_name
+            self.target_ext_loc_name,
+            self.target_strg_cred_name,
+            self.target_ext_loc_url,
+        ) = self.target_external_location_pre_req
+        self.target_ctlg_name = target_catalog_name
         self.db_dict = self._build_location_for_schemas(
             schemas_locations_dict or dict()
         )
@@ -187,8 +187,8 @@ class MigrateCatalog:
     def _migrate_tags(
         self,
         securable_type_str: str,
-        old_catalog_name: str,
-        new_securable_full_name: str,
+        source_catalog_name: str,
+        target_securable_full_name: str,
     ) -> bool:
         """
         Migrates tags for a securable type.
@@ -199,14 +199,14 @@ class MigrateCatalog:
         Returns:
             bool: True if migration was successful, False otherwise.
         """
-        _, schema, table = (*new_securable_full_name.split("."), None, None)[:3]
+        _, schema, table = (*target_securable_full_name.split("."), None, None)[:3]
         schema_clause = f"\tAND schema_name = '{schema}'" if schema else ""
         table_clause = f"\tAND table_name = '{table}'" if table else ""
         query = (
             f"""
             SELECT * FROM 
             system.information_schema.{securable_type_str.lower()}_tags 
-            WHERE catalog_name = '{old_catalog_name}'
+            WHERE catalog_name = '{source_catalog_name}'
             """
             + schema_clause
             + table_clause
@@ -218,7 +218,7 @@ class MigrateCatalog:
                 if securable_type_str.lower() == "column":
                     spark.sql(
                         f"""
-                  ALTER TABLE {new_securable_full_name}
+                  ALTER TABLE {target_securable_full_name}
                   ALTER COLUMN {row.column_name}
                   SET TAGS ('{row.tag_name}' = '{row.tag_value}')
                   """
@@ -226,7 +226,7 @@ class MigrateCatalog:
                 else:
                     spark.sql(
                         f"""
-                  ALTER {securable_type_str} {new_securable_full_name}
+                  ALTER {securable_type_str} {target_securable_full_name}
                   SET TAGS ('{row.tag_name}' = '{row.tag_value}')
                   """
                     )
@@ -238,22 +238,22 @@ class MigrateCatalog:
     def _parse_transfer_permissions(
         self,
         securable_type: catalog.SecurableType,
-        old_securable_full_name: str,
-        new_securable_full_name: str,
+        source_securable_full_name: str,
+        target_securable_full_name: str,
     ) -> bool:
         """
         Transfers permissions between securable objects.
 
         Parameters:
-            old_securable_full_name (Any): The old securable object full name.
-            new_securable_full_name (Any): The new securable object full name.
+            source_securable_full_name (Any): The source securable object full name.
+            target_securable_full_name (Any): The new target securable object full name.
 
         Returns:
             bool: True if transfer was successful, False otherwise.
         """
         try:
             grants = self.w.grants.get(
-                securable_type=securable_type, full_name=f"{old_securable_full_name}"
+                securable_type=securable_type, full_name=f"{source_securable_full_name}"
             )
             if grants.privilege_assignments == None:
                 return True
@@ -269,7 +269,7 @@ class MigrateCatalog:
                     catalog.PermissionsChange(add=privileges, principal=principal)
                 )
             self.w.grants.update(
-                full_name=new_securable_full_name,
+                full_name=target_securable_full_name,
                 securable_type=securable_type,
                 changes=changes,
             )
@@ -282,8 +282,8 @@ class MigrateCatalog:
     def _get_or_create_transfer(
         self,
         securable_type: catalog.SecurableType,
-        old_securable_full_name: str,
-        new_securable_full_name: str,
+        source_securable_full_name: str,
+        target_securable_full_name: str,
         print_indent_level: str = 0,
         **kwarg,
     ) -> None:
@@ -292,44 +292,44 @@ class MigrateCatalog:
 
         Parameters:
             securable_type (str): The type of securable object.
-            old_securable_full_name (str): full name of the old securable object.
-            new_securable_full_name (str): full name of the new securable object.
+            source_securable_full_name (str): full name of the source securable object.
+            target_securable_full_name (str): full name of the new target securable object.
         """
-        new_securable = None
+        target_securable = None
         analysis_exception_hit = 0
         databricks_exception_hit = 0
-        old_securable = self.securable_dict[securable_type][0].get(
-            old_securable_full_name
+        source_securable = self.securable_dict[securable_type][0].get(
+            source_securable_full_name
         )
-        new_securable_name = re.findall("[^.]+$", new_securable_full_name)[0]
+        target_securable_name = re.findall("[^.]+$", target_securable_full_name)[0]
         try:
-            new_securable = self.securable_dict[securable_type][0].get(
-                new_securable_full_name
+            target_securable = self.securable_dict[securable_type][0].get(
+                target_securable_full_name
             )
             self._print_to_console(
-                f"{self.securable_dict[securable_type][1]} {new_securable_name} already exists. Only transferring permissions, comments and tags ...",
+                f"{self.securable_dict[securable_type][1]} {target_securable_name} already exists. Only transferring permissions, comments and tags ...",
                 indent_level=print_indent_level,
                 end=" ",
             )
         except DatabricksError as e:
             logger.info(e)
             self._print_to_console(
-                f"Creating {self.securable_dict[securable_type][1]} {new_securable_name} and transferring permissions, comments and tags ...",
+                f"Creating {self.securable_dict[securable_type][1]} {target_securable_name} and transferring permissions, comments and tags ...",
                 indent_level=print_indent_level,
                 end=" ",
             )
             try:
                 if securable_type == catalog.SecurableType.TABLE:
                     spark.sql(
-                        f"CREATE TABLE {new_securable_full_name} DEEP CLONE {old_securable_full_name}"
+                        f"CREATE TABLE {target_securable_full_name} DEEP CLONE {source_securable_full_name}"
                     )
-                    new_securable = self.securable_dict[securable_type][0].get(
-                        full_name=new_securable_full_name
+                    target_securable = self.securable_dict[securable_type][0].get(
+                        full_name=target_securable_full_name
                     )
 
                 else:
-                    new_securable = self.securable_dict[securable_type][0].create(
-                        name=new_securable_name, **kwarg
+                    target_securable = self.securable_dict[securable_type][0].create(
+                        name=target_securable_name, **kwarg
                     )
             except AnalysisException as ae:
                 logger.exception(ae)
@@ -352,32 +352,32 @@ class MigrateCatalog:
                 # migrate the securable's granted permissions
                 _ = self._parse_transfer_permissions(
                     securable_type=securable_type,
-                    old_securable_full_name=old_securable_full_name,
-                    new_securable_full_name=new_securable_full_name,
+                    source_securable_full_name=source_securable_full_name,
+                    target_securable_full_name=target_securable_full_name,
                 )
                 # migrate the securable's tags
                 if securable_type != catalog.SecurableType.EXTERNAL_LOCATION:
                     _ = self._migrate_tags(
                         self.securable_dict[securable_type][1],
-                        self.old_ctlg_name,
-                        new_securable_full_name,
+                        self.source_ctlg_name,
+                        target_securable_full_name,
                     )
                 if securable_type == catalog.SecurableType.TABLE:
                     # migrate the table columns' tags
                     _ = self._migrate_tags(
-                        "column", self.old_ctlg_name, new_securable_full_name
+                        "column", self.source_ctlg_name, target_securable_full_name
                     )
 
                     # migrate the table's comment
                     spark.sql(
-                        f'COMMENT ON TABLE {new_securable_full_name} IS "{old_securable.comment or ""}"'
+                        f'COMMENT ON TABLE {target_securable_full_name} IS "{source_securable.comment or ""}"'
                     )
 
                     # migrate the table columns' comments
-                    for col in old_securable.columns:
+                    for col in source_securable.columns:
                         spark.sql(
                             f"""
-                      ALTER TABLE {new_securable_full_name}
+                      ALTER TABLE {target_securable_full_name}
                       ALTER COLUMN {col.name}
                       COMMENT "{col.comment or ""}"
                       """
@@ -385,14 +385,14 @@ class MigrateCatalog:
 
                 else:
                     # migrate the securable's comment
-                    if new_securable_name.lower() != "information_schema":
+                    if target_securable_name.lower() != "information_schema":
                         self.securable_dict[securable_type][0].update(
-                            new_securable_full_name, comment=old_securable.comment or ""
+                            target_securable_full_name, comment=source_securable.comment or ""
                         )
 
                 self._print_to_console("DONE!", color="green")
 
-        return new_securable
+        return target_securable
 
     def __call__(self):
         """
@@ -402,42 +402,42 @@ class MigrateCatalog:
             "Creating data assets if they do not exist and migrate permissions, comments and tags.",
             color="cyan",
         )
-        self.new_external_location = self._get_or_create_transfer(
+        self.target_external_location = self._get_or_create_transfer(
             catalog.SecurableType.EXTERNAL_LOCATION,
-            self.old_ext_loc_name,
-            self.new_ext_loc_name,
+            self.source_ext_loc_name,
+            self.target_ext_loc_name,
             print_indent_level=3,
-            credential_name=self.new_strg_cred_name,
-            url=self.new_ext_loc_url,
+            credential_name=self.target_strg_cred_name,
+            url=self.target_ext_loc_url,
         )
 
-        self.new_catalog = self._get_or_create_transfer(
+        self.target_catalog = self._get_or_create_transfer(
             catalog.SecurableType.CATALOG,
-            self.old_ctlg_name,
-            self.new_ctlg_name,
+            self.source_ctlg_name,
+            self.target_ctlg_name,
             print_indent_level=6,
-            storage_root=self.new_external_location.url,
+            storage_root=self.target_external_location.url,
         )
 
-        db_list = self.w.schemas.list(self.old_ctlg_name)
+        db_list = self.w.schemas.list(self.source_ctlg_name)
         for db in db_list:
-            self.new_db = self._get_or_create_transfer(
+            self.target_db = self._get_or_create_transfer(
                 catalog.SecurableType.SCHEMA,
-                f"{self.old_ctlg_name}.{db.name}",
-                f"{self.new_ctlg_name}.{db.name}",
+                f"{self.source_ctlg_name}.{db.name}",
+                f"{self.target_ctlg_name}.{db.name}",
                 print_indent_level=9,
-                catalog_name=self.new_catalog.name,
+                catalog_name=self.target_catalog.name,
                 storage_root=self.db_dict.get(db.name, None) or db.storage_root,
             )
 
             tbl_list = self.w.tables.list(
-                catalog_name=self.old_ctlg_name, schema_name=db.name
+                catalog_name=self.source_ctlg_name, schema_name=db.name
             )
             for tbl in tbl_list:
                 if tbl.table_type == catalog.TableType.MANAGED:
-                    self.new_table = self._get_or_create_transfer(
+                    self.target_table = self._get_or_create_transfer(
                         catalog.SecurableType.TABLE,
-                        f"{self.old_ctlg_name}.{db.name}.{tbl.name}",
-                        f"{self.new_ctlg_name}.{db.name}.{tbl.name}",
+                        f"{self.source_ctlg_name}.{db.name}.{tbl.name}",
+                        f"{self.target_ctlg_name}.{db.name}.{tbl.name}",
                         print_indent_level=12,
                     )
