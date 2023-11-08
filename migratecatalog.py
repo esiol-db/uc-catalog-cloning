@@ -263,7 +263,7 @@ class MigrateCatalog:
                 privileges = [
                     eval(f"catalog.Privilege.{privilege}")
                     for privilege in principal_permission_pair.privileges
-                    if (("VOL" not in privilege) and ("BROWSE" not in privilege))
+                    if ("BROWSE" not in privilege)
                 ]
                 changes.append(
                     catalog.PermissionsChange(add=privileges, principal=principal)
