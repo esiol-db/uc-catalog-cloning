@@ -245,8 +245,8 @@ class MigrateCatalog:
         Transfers permissions between securable objects.
 
         Parameters:
-            source_securable_full_name (Any): The source securable object full name.
-            target_securable_full_name (Any): The new target securable object full name.
+            source_securable_full_name (str): The source securable object full name.
+            target_securable_full_name (str): The new target securable object full name.
 
         Returns:
             bool: True if transfer was successful, False otherwise.
