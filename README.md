@@ -49,14 +49,16 @@ For a hands-on example, refer to the provided Jupyter notebook in the repository
 Customize the migration process by modifying the MigrateCatalog class and its methods to suit your specific requirements.
 
 ## Issues and Support:
-
 If you encounter any issues or have questions, please check the project's issue tracker on GitHub or reach out to the community for support.
 
 ## Contributing
 We welcome contributions from the open-source community to make this migration script even more powerful and versatile. Please follow these guidelines:
 
-Fork the repository and create a feature branch for your contributions.
-Ensure that your code adheres to PEP 8 style guidelines.
-Write clear and concise documentation for your changes.
-Create tests for your code to maintain code quality.
-Submit a pull request for review.
+- Fork the repository and create a feature branch for your contributions.
+- Ensure that your code adheres to PEP 8 style guidelines.
+- Write clear and concise documentation for your changes.
+- Create tests for your code to maintain code quality.
+- Submit a pull request for review.
+
+## LICENSE
+Please see [LICENSE](https://github.com/esiol-db/uc-catalog-migration/blob/main/LICENSE)
