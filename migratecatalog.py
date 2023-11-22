@@ -58,10 +58,10 @@ except ImportError as e:
     ) from e
 
 
-# Define the MigrateCatalog class
-class MigrateCatalog:
+# Define the CloneCatalog class
+class CloneCatalog:
     """
-    This class facilitates the migration of external storages and catalogs and the data assets between catalogs, including the associated permissions, comments, and tags.
+    This class facilitates the cloning of external storages and catalogs and the data assets between catalogs, including the associated permissions, comments, and tags.
     It creates new data assets if they do not already exist in the target catalog, and if they exist it only transfers the associated permissions, comments, and tags.
     """
 
@@ -74,7 +74,7 @@ class MigrateCatalog:
         schemas_locations_dict: Optional[Dict[str, List]],
     ) -> None:
         """
-        Initializes the MigrateCatalog class.
+        Initializes the CloneCatalog class.
 
         Parameters:
         source_catalog_external_location_name (str): Name of the source external location.
@@ -184,20 +184,20 @@ class MigrateCatalog:
 
         return db_dict_out
 
-    def _migrate_tags(
+    def _clone_tags(
         self,
         securable_type_str: str,
         source_catalog_name: str,
         target_securable_full_name: str,
     ) -> bool:
         """
-        Migrates tags for a securable type.
+        Clones tags for a securable type.
 
         Parameters:
-            securable_type_str (str): The type of the securable to migrate tags for.
+            securable_type_str (str): The type of the securable to clone tags for.
 
         Returns:
-            bool: True if migration was successful, False otherwise.
+            bool: True if cloning was successful, False otherwise.
         """
         _, schema, table = (*target_securable_full_name.split("."), None, None)[:3]
         schema_clause = f"\tAND schema_name = '{schema}'" if schema else ""
@@ -349,31 +349,31 @@ class MigrateCatalog:
                 )
         finally:
             if not (analysis_exception_hit or databricks_exception_hit):
-                # migrate the securable's granted permissions
+                # clone the securable's granted permissions
                 _ = self._parse_transfer_permissions(
                     securable_type=securable_type,
                     source_securable_full_name=source_securable_full_name,
                     target_securable_full_name=target_securable_full_name,
                 )
-                # migrate the securable's tags
+                # clone the securable's tags
                 if securable_type != catalog.SecurableType.EXTERNAL_LOCATION:
-                    _ = self._migrate_tags(
+                    _ = self._clone_tags(
                         self.securable_dict[securable_type][1],
                         self.source_ctlg_name,
                         target_securable_full_name,
                     )
                 if securable_type == catalog.SecurableType.TABLE:
-                    # migrate the table columns' tags
-                    _ = self._migrate_tags(
+                    # clone the table columns' tags
+                    _ = self._clone_tags(
                         "column", self.source_ctlg_name, target_securable_full_name
                     )
 
-                    # migrate the table's comment
+                    # clone the table's comment
                     spark.sql(
                         f'COMMENT ON TABLE {target_securable_full_name} IS "{source_securable.comment or ""}"'
                     )
 
-                    # migrate the table columns' comments
+                    # clone the table columns' comments
                     for col in source_securable.columns:
                         spark.sql(
                             f"""
@@ -384,7 +384,7 @@ class MigrateCatalog:
                         )
 
                 else:
-                    # migrate the securable's comment
+                    # clone the securable's comment
                     if target_securable_name.lower() != "information_schema":
                         self.securable_dict[securable_type][0].update(
                             target_securable_full_name, comment=source_securable.comment or ""
@@ -396,10 +396,10 @@ class MigrateCatalog:
 
     def __call__(self):
         """
-        Executes the migration process.
+        Executes the cloning process.
         """
         self._print_to_console(
-            "Creating data assets if they do not exist and migrate permissions, comments and tags.",
+            "Creating data assets if they do not exist and clone permissions, comments and tags.",
             color="cyan",
         )
         self.target_external_location = self._get_or_create_transfer(
