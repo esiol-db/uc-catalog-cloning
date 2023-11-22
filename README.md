@@ -61,4 +61,4 @@ We welcome contributions from the open-source community to make this migration s
 - Submit a pull request for review.
 
 ## LICENSE
-Please see [LICENSE](https://github.com/esiol-db/uc-catalog-migration/blob/main/LICENSE)
+Please see [LICENSE](https://github.com/databricks/uc-catalog-migration/blob/main/LICENSE)
