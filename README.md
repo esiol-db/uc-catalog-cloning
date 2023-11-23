@@ -2,7 +2,7 @@
 
 **uc-catalog-migration** is a powerful migration script designed to streamline the process of creating a new catalog with an updated storage location. It facilitates the seamless migration of all associated databases, managed tables, permission accesses, tags, and comments from the source catalog to the target catalog.
 
-## How to Use
+## How to Use 
 
 Follow these steps to make the most of this migration script:
 
