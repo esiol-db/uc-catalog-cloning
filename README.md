@@ -1,6 +1,6 @@
 # uc-catalog-cloning
 
-**uc-catalog-cloning** is a powerful cloning script designed to streamline the process of creating a new catalog with an updated storage location. It facilitates the seamless cloning of all associated databases, managed tables, permission accesses, tags, and comments from the source catalog to the target catalog.
+**uc-catalog-cloning** is a powerful cloning script designed to streamline the process of creating a new catalog with an updated storage location. It facilitates the seamless cloning of all associated databases, managed tables, permission accesses, tags, and comments from the source catalog to the target catalog. For more information, see this [blog post](https://community.databricks.com/t5/technical-blog/uc-catalog-cloning-an-automated-approach/ba-p/53460).
 
 ## How to Use 
 
@@ -20,7 +20,7 @@ Follow these steps to make the most of this cloning script:
    
 3. **Instantiate the `CloneCatalog` Class**:
 
-Create an instance of the CloneCatalog class with the necessary configuration parameters as illustrated in [example.ipynb](https://github.com/databricks/uc-catalog-cloning/blob/main/example.ipynb)
+Create an instance of the CloneCatalog class with the necessary configuration parameters as illustrated in [example.ipynb](https://github.com/esiol-db/uc-catalog-cloning/blob/main/example.ipynb)
 
    ```python
 cloning = CloneCatalog(
@@ -43,7 +43,7 @@ cloning()
 
 Example Notebook:
 
-For a hands-on example, refer to the provided Jupyter notebook in the repository [example.ipynb](https://github.com/databricks/uc-catalog-cloning/blob/main/example.ipynb).
+For a hands-on example, refer to the provided Jupyter notebook in the repository [example.ipynb](https://github.com/esiol-db/uc-catalog-cloning/blob/main/example.ipynb).
 
 ## Customization
 Customize the cloning process by modifying the CloneCatalog class and its methods to suit your specific requirements.
@@ -61,4 +61,4 @@ We welcome contributions from the open-source community to make this cloning scr
 - Submit a pull request for review.
 
 ## LICENSE
-Please see [LICENSE](https://github.com/databricks/uc-catalog-cloning/blob/main/LICENSE)
+Please see [LICENSE](https://github.com/esiol-db/uc-catalog-cloning/blob/main/LICENSE)
