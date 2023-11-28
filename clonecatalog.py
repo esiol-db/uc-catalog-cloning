@@ -26,6 +26,11 @@ except Exception as e:
         raise ImportError(
             "Could not import databricks-connect, please install with `pip install databricks-connect`."
         ) from ie
+    except ValueError as ve:
+        logger.info(ve)
+        raise ImportError(
+            "Please re-install with `pip install databricks-connect==13.3.2`."
+        ) from ve
 
 # Import necessary Databricks SDK modules
 # If unavailable, prompt the user to install or upgrade them
