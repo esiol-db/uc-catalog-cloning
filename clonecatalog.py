@@ -392,7 +392,8 @@ class CloneCatalog:
                     # clone the securable's comment
                     if target_securable_name.lower() != "information_schema":
                         self.securable_dict[securable_type][0].update(
-                            target_securable_full_name, comment=source_securable.comment or ""
+                            target_securable_full_name,
+                            comment=source_securable.comment or "",
                         )
 
                 self._print_to_console("DONE!", color="green")
