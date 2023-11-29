@@ -29,7 +29,8 @@ except Exception as e:
     except ValueError as ve:
         logger.info(ve)
         raise ImportError(
-            "Please re-install with `pip install databricks-connect==13.3.2`."
+            "Please re-install databricks-connect with `pip install databricks-connect==13.3.2`\n"
+            "and databricks-sdk with `pip install databricks-sdk --upgrade`.\n"
         ) from ve
 
 # Import necessary Databricks SDK modules
@@ -224,7 +225,7 @@ class CloneCatalog:
                     spark.sql(
                         f"""
                   ALTER TABLE {target_securable_full_name}
-                  ALTER COLUMN {row.column_name}
+                  ALTER COLUMN `{row.column_name}`
                   SET TAGS ('{row.tag_name}' = '{row.tag_value}')
                   """
                     )
