@@ -29,7 +29,7 @@ except Exception as e:
     except ValueError as ve:
         logger.info(ve)
         raise ImportError(
-            "Please re-install with `pip install databricks-connect --upgrade`."
+            "Please re-install with `pip install databricks-connect==13.3.2`."
         ) from ve
 
 # Import necessary Databricks SDK modules
