@@ -24,13 +24,13 @@ except Exception as e:
     except ImportError as ie:
         logger.info(ie)
         raise ImportError(
-            "Could not import databricks-connect, please install with `pip install databricks-connect`."
+            "Could not import databricks-connect, please install with `pip install databricks-connect==13.3.2`."
         ) from ie
     except ValueError as ve:
         logger.info(ve)
         raise ImportError(
             "Please re-install databricks-connect with `pip install databricks-connect==13.3.2`\n"
-            "and databricks-sdk with `pip install databricks-sdk --upgrade`.\n"
+            "and databricks-sdk with `pip install databricks-sdk==0.13.0`.\n"
         ) from ve
 
 # Import necessary Databricks SDK modules
@@ -42,7 +42,7 @@ try:
 except ImportError as e:
     logger.info(e)
     raise ImportError(
-        "Could not import databricks-sdk, please install with `pip install databricks-sdk --upgrade`.\n"
+        "Could not import databricks-sdk, please install with `pip install databricks-sdk==0.13.0`.\n"
         "If you are running from Databricks you also need to restart Python by running `dbutils.library.restartPython()`"
     ) from e
 
