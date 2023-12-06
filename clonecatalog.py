@@ -24,13 +24,14 @@ except Exception as e:
     except ImportError as ie:
         logger.info(ie)
         raise ImportError(
-            "Could not import databricks-connect, please install with `pip install databricks-connect==13.3.2`."
+            "Could not import databricks-connect, please install with `pip install databricks-connect==13.3.3`."
         ) from ie
     except ValueError as ve:
         logger.info(ve)
         raise ImportError(
-            "Please re-install databricks-connect with `pip install databricks-connect==13.3.2`\n"
-            "and databricks-sdk with `pip install databricks-sdk==0.13.0`.\n"
+            "Please re-install databricks-connect with `pip install databricks-connect==13.3.3`.\n"
+            "and databricks-sdk with `pip install databricks-sdk==0.14.0`.\n"
+            "If you are running from Databricks you also need to restart Python by running `dbutils.library.restartPython()`."
         ) from ve
 
 # Import necessary Databricks SDK modules
@@ -42,8 +43,8 @@ try:
 except ImportError as e:
     logger.info(e)
     raise ImportError(
-        "Could not import databricks-sdk, please install with `pip install databricks-sdk==0.13.0`.\n"
-        "If you are running from Databricks you also need to restart Python by running `dbutils.library.restartPython()`"
+        "Could not import databricks-sdk, please install with `pip install databricks-sdk==0.14.0`.\n"
+        "If you are running from Databricks you also need to restart Python by running `dbutils.library.restartPython()`."
     ) from e
 
 # Import other necessary modules and handle potential import errors
@@ -263,17 +264,10 @@ class CloneCatalog:
             )
             if grants.privilege_assignments == None:
                 return True
-            changes = []
-            for principal_permission_pair in grants.privilege_assignments:
-                principal = principal_permission_pair.principal
-                privileges = [
-                    eval(f"catalog.Privilege.{privilege}")
-                    for privilege in principal_permission_pair.privileges
-                    if ("BROWSE" not in privilege)
-                ]
-                changes.append(
-                    catalog.PermissionsChange(add=privileges, principal=principal)
-                )
+            changes = [
+                catalog.PermissionsChange(add=pair.privileges, principal=pair.principal)
+                for pair in grants.privilege_assignments
+            ]
             self.w.grants.update(
                 full_name=target_securable_full_name,
                 securable_type=securable_type,
