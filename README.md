@@ -7,7 +7,16 @@
 Follow these steps to make the most of this cloning script:
 
 1. **Installation**:
-   - Ensure that you have Python installed on your system.
+   - Ensure that you have the following Python libraries installed on Databricks:
+     ```bash
+     databricks-sdk==0.14.0
+     termcolor
+     ```
+     If running the code from your local development system, also install the following library:
+     ```bash
+     databricks-connect==13.3.3
+     ```
+     
 
 2. **Import the `CloneCatalog` Class**:
    - Import the `CloneCatalog` class from the `clonecatalog` module in your Python script or Jupyter notebook.
