@@ -10,6 +10,7 @@ Follow these steps to make the most of this cloning script:
    - Ensure that you have the following Python libraries installed on Databricks:
      ```bash
      databricks-sdk==0.14.0
+     termcolor
      ```
      If running the code from your local development system, also install the following library:
      ```bash
