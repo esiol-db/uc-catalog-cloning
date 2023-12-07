@@ -282,7 +282,7 @@ class CloneCatalog:
     def _get_or_create_transfer(
         self,
         securable_type: catalog.SecurableType,
-        source_securable_full_name: str,
+        source_securable_full_name: Optional[str],
         target_securable_full_name: str,
         print_indent_level: str = 0,
         **kwarg,
@@ -298,8 +298,10 @@ class CloneCatalog:
         target_securable = None
         analysis_exception_hit = 0
         databricks_exception_hit = 0
-        source_securable = self.securable_dict[securable_type][0].get(
-            source_securable_full_name
+        source_securable = (
+            self.securable_dict[securable_type][0].get(source_securable_full_name)
+            if source_securable_full_name
+            else None
         )
         target_securable_name = re.findall("[^.]+$", target_securable_full_name)[0]
         try:
@@ -350,11 +352,12 @@ class CloneCatalog:
         finally:
             if not (analysis_exception_hit or databricks_exception_hit):
                 # clone the securable's granted permissions
-                _ = self._parse_transfer_permissions(
-                    securable_type=securable_type,
-                    source_securable_full_name=source_securable_full_name,
-                    target_securable_full_name=target_securable_full_name,
-                )
+                if source_securable_full_name:
+                    _ = self._parse_transfer_permissions(
+                        securable_type=securable_type,
+                        source_securable_full_name=source_securable_full_name,
+                        target_securable_full_name=target_securable_full_name,
+                    )
                 # clone the securable's tags
                 if securable_type != catalog.SecurableType.EXTERNAL_LOCATION:
                     _ = self._clone_tags(
@@ -386,9 +389,10 @@ class CloneCatalog:
                 else:
                     # clone the securable's comment
                     if target_securable_name.lower() != "information_schema":
+                        comment = source_securable.comment if source_securable else None
                         self.securable_dict[securable_type][0].update(
                             target_securable_full_name,
-                            comment=source_securable.comment or "",
+                            comment=comment or "",
                         )
 
                 self._print_to_console("DONE!", color="green")
