@@ -69,7 +69,7 @@ except ImportError as e:
 class CloneCatalog:
     """
     This class facilitates the cloning of external storages and catalogs and the data assets between catalogs, including the associated permissions, comments, and tags.
-    It creates new data assets if they do not already exist in the target catalog, and if they exist it only transfers the associated permissions, comments, and tags.
+    It creates new data assets if they do not already exist in the target catalog, and if they exist it only transfers the associated permissions, comments, and tags, unless specified otherwise.
     """
 
     def __init__(
@@ -79,6 +79,7 @@ class CloneCatalog:
         target_catalog_external_location_pre_req: List,
         target_catalog_name: str,
         schemas_locations_dict: Optional[Dict[str, List]],
+        force_deep_clone: bool = False,
     ) -> None:
         """
         Initializes the CloneCatalog class.
@@ -90,6 +91,7 @@ class CloneCatalog:
         target_catalog_name (str): Name of the new target catalog.
         schemas_locations_dict (Dict[str, List]): Dictionary mapping schemas to locations in the form of a schema_name as a key and a list as the associated value in the form
         `[ext_loc_name, 'storage_credential_name', 'storage_location_url(ADLS, S3, GS)']`
+        force_deep_clone (bool): Flag to force deep clone of tables even if they already exist in the target schema. Defaults to False.
         """
         try:
             self.w = WorkspaceClient()
@@ -121,6 +123,7 @@ class CloneCatalog:
             catalog.SecurableType.SCHEMA: [self.w.schemas, "Schema"],
             catalog.SecurableType.TABLE: [self.w.tables, "Table"],
         }
+        self.force_deep_clone = force_deep_clone
 
     def _print_to_console(
         self,
@@ -305,6 +308,9 @@ class CloneCatalog:
         )
         target_securable_name = re.findall("[^.]+$", target_securable_full_name)[0]
         try:
+            if securable_type == catalog.SecurableType.TABLE and self.force_deep_clone:
+                raise DatabricksError("Force deep clone for table")
+
             target_securable = self.securable_dict[securable_type][0].get(
                 target_securable_full_name
             )
@@ -323,7 +329,7 @@ class CloneCatalog:
             try:
                 if securable_type == catalog.SecurableType.TABLE:
                     spark.sql(
-                        f"CREATE TABLE {target_securable_full_name} DEEP CLONE {source_securable_full_name}"
+                        f"CREATE OR REPLACE TABLE {target_securable_full_name} DEEP CLONE {source_securable_full_name}"
                     )
                     target_securable = self.securable_dict[securable_type][0].get(
                         full_name=target_securable_full_name
