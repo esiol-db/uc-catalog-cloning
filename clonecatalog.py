@@ -3,6 +3,7 @@ from typing import Dict, Optional, List
 import re
 import logging
 
+
 # Set up logger to capture logs and store them in a file
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -34,6 +35,7 @@ except Exception as e:
             "If you are running from Databricks you also need to restart Python by running `dbutils.library.restartPython()`."
         ) from ve
 
+
 # Import necessary Databricks SDK modules
 # If unavailable, prompt the user to install or upgrade them
 try:
@@ -51,6 +53,7 @@ except ImportError as e:
 try:
     from pyspark.sql.utils import AnalysisException
     from pyspark.errors.exceptions.connect import SparkConnectGrpcException
+    from pyspark.errors.exceptions.base import PySparkAssertionError
 except ImportError as e:
     logger.info(e)
     raise ImportError(
@@ -62,6 +65,15 @@ except ImportError as e:
     logger.info(e)
     raise ImportError(
         "Could not import termcolor, please install with `pip install termcolor`."
+    ) from e
+
+# Import PySpark testing methods which have been introduced after pyspark 3.5
+try:
+    from pyspark.testing import assertSchemaEqual
+except (ImportError, ModuleNotFoundError) as e:
+    logger.info(e)
+    raise ImportError(
+        "Could not import assertSchemaEqual, please make sure `pyspark>=3.5`."
     ) from e
 
 
@@ -79,6 +91,7 @@ class CloneCatalog:
         target_catalog_external_location_pre_req: List,
         target_catalog_name: str,
         schemas_locations_dict: Optional[Dict[str, List]],
+        force_deep_clone: bool = False,
     ) -> None:
         """
         Initializes the CloneCatalog class.
@@ -90,6 +103,7 @@ class CloneCatalog:
         target_catalog_name (str): Name of the new target catalog.
         schemas_locations_dict (Dict[str, List]): Dictionary mapping schemas to locations in the form of a schema_name as a key and a list as the associated value in the form
         `[ext_loc_name, 'storage_credential_name', 'storage_location_url(ADLS, S3, GS)']`
+        force_deep_clone (bool): Flag to force deep cloning of tables even if they already exist in the target schema. Defaults to False.
         """
         try:
             self.w = WorkspaceClient()
@@ -121,6 +135,7 @@ class CloneCatalog:
             catalog.SecurableType.SCHEMA: [self.w.schemas, "Schema"],
             catalog.SecurableType.TABLE: [self.w.tables, "Table"],
         }
+        self.force_deep_clone = force_deep_clone
 
     def _print_to_console(
         self,
@@ -303,27 +318,33 @@ class CloneCatalog:
             if source_securable_full_name
             else None
         )
+        self.table_already_exist = False
         target_securable_name = re.findall("[^.]+$", target_securable_full_name)[0]
         try:
             target_securable = self.securable_dict[securable_type][0].get(
                 target_securable_full_name
             )
+            if securable_type == catalog.SecurableType.TABLE:
+                self.table_already_exist = True
+                if self.force_deep_clone:
+                    self.table_already_exist = False
+                    raise DatabricksError
             self._print_to_console(
-                f"{self.securable_dict[securable_type][1]} {target_securable_name} already exists. Only transferring permissions, comments and tags ...",
+                f"{self.securable_dict[securable_type][1]} {target_securable_name} already exists.{' If schemas matches,' if securable_type == catalog.SecurableType.TABLE else ''} Only transferring permissions, comments and tags ...",
                 indent_level=print_indent_level,
                 end=" ",
             )
         except DatabricksError as e:
             logger.info(e)
             self._print_to_console(
-                f"Creating {self.securable_dict[securable_type][1]} {target_securable_name} and transferring permissions, comments and tags ...",
+                f"{'Replacing' if self.force_deep_clone else 'Creating'} {self.securable_dict[securable_type][1]} {target_securable_name} and transferring permissions, comments and tags ...",
                 indent_level=print_indent_level,
                 end=" ",
             )
             try:
                 if securable_type == catalog.SecurableType.TABLE:
                     spark.sql(
-                        f"CREATE TABLE {target_securable_full_name} DEEP CLONE {source_securable_full_name}"
+                        f"CREATE OR REPLACE TABLE {target_securable_full_name} DEEP CLONE {source_securable_full_name}"
                     )
                     target_securable = self.securable_dict[securable_type][0].get(
                         full_name=target_securable_full_name
@@ -366,25 +387,37 @@ class CloneCatalog:
                         target_securable_full_name,
                     )
                 if securable_type == catalog.SecurableType.TABLE:
-                    # clone the table columns' tags
-                    _ = self._clone_tags(
-                        "column", self.source_ctlg_name, target_securable_full_name
-                    )
+                    # checking if the schema is the same
+                    self.table_schema_equal = True
+                    if self.table_already_exist:
+                        df_source = spark.table(source_securable_full_name)
+                        df_target = spark.table(target_securable_full_name)
+                        try:
+                            assertSchemaEqual(df_source.schema, df_target.schema)
+                            self.table_schema_equal = True
+                        except PySparkAssertionError:
+                            self.table_schema_equal = False
 
-                    # clone the table's comment
-                    spark.sql(
-                        f'COMMENT ON TABLE {target_securable_full_name} IS "{source_securable.comment or ""}"'
-                    )
-
-                    # clone the table columns' comments
-                    for col in source_securable.columns:
-                        spark.sql(
-                            f"""
-                      ALTER TABLE {target_securable_full_name}
-                      ALTER COLUMN {col.name}
-                      COMMENT "{col.comment or ""}"
-                      """
+                    if self.table_schema_equal:
+                        # clone the table columns' tags
+                        _ = self._clone_tags(
+                            "column", self.source_ctlg_name, target_securable_full_name
                         )
+
+                        # clone the table's comment
+                        spark.sql(
+                            f'COMMENT ON TABLE {target_securable_full_name} IS "{source_securable.comment or ""}"'
+                        )
+
+                        # clone the table columns' comments
+                        for col in source_securable.columns:
+                            spark.sql(
+                                f"""
+                        ALTER TABLE {target_securable_full_name}
+                        ALTER COLUMN {col.name}
+                        COMMENT "{col.comment or ""}"
+                        """
+                            )
 
                 else:
                     # clone the securable's comment

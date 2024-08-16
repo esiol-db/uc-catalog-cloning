@@ -2,3 +2,6 @@
 .databricks
 *.log
 __pycache__/
+
+.databricks
+databricks.yml
