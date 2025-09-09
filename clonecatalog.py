@@ -226,7 +226,7 @@ class CloneCatalog:
                     spark.sql(
                         f"""
                   ALTER TABLE {target_securable_full_name}
-                  ALTER COLUMN {row.column_name}
+                  ALTER COLUMN `{row.column_name}`
                   SET TAGS ('{row.tag_name}' = '{row.tag_value}')
                   """
                     )
@@ -381,7 +381,7 @@ class CloneCatalog:
                         spark.sql(
                             f"""
                       ALTER TABLE {target_securable_full_name}
-                      ALTER COLUMN {col.name}
+                      ALTER COLUMN `{col.name}`
                       COMMENT "{col.comment or ""}"
                       """
                         )
